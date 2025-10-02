@@ -1,0 +1,18 @@
+# secrets / ไฟล์ที่ไม่ควรขึ้น
+.env
+flags/
+public/uploads/
+
+# สำเนา/ไฟล์ชั่วคราว
+*.log
+*.tmp
+*.swp
+*.bak
+*.backup
+
+# ถ้าเคยรัน composer (มี vendor/)
+vendor/
+
+# OS junk
+.DS_Store
+Thumbs.db
