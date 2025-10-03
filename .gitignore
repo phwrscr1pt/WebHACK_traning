@@ -1,7 +1,7 @@
 # secrets / ไฟล์ที่ไม่ควรขึ้น
-.env
-flags/
-public/uploads/
+# .env
+# flags/
+# public/uploads/
 
 # สำเนา/ไฟล์ชั่วคราว
 *.log
