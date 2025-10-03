@@ -19,8 +19,8 @@ $gates = [
         'check' => function() {
             return isset($_SERVER['HTTP_USER_AGENT']) && $_SERVER['HTTP_USER_AGENT'] === 'LOCTHBrowser';
         },
-        'hint' => 'Set User-Agent: LOCTHBrowser',
-        'message' => 'Only LOCTH Browser is allowed here!'
+        'hint' => 'Just try to do in HTTP Request Header',
+        'message' => 'Only people who use the official LOCTHBrowser are allowed on this site!'
     ],
     2 => [
         'check' => function() {
@@ -37,14 +37,14 @@ $gates = [
             $year = date('Y', $date);
             return $year == '2018';
         },
-        'hint' => 'Set Date header with year 2018 (e.g., Wed, 21 Oct 2018 07:28:00 GMT)',
+        'hint' => 'Just Edit Your Time to 2018',
         'message' => 'This site only works in 2018. Time travel required!'
     ],
     4 => [
         'check' => function() {
             return isset($_SERVER['HTTP_DNT']) && $_SERVER['HTTP_DNT'] === '1';
         },
-        'hint' => 'Set DNT: 1',
+        'hint' => 'DNT???',
         'message' => 'We don\'t trust users who allow tracking!'
     ],
     5 => [
@@ -53,19 +53,27 @@ $gates = [
             $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
             return preg_match('/^51\.(68|75|91)\./', $ip);
         },
-        'hint' => 'Set X-Forwarded-For with French IP starting with 51.68, 51.75, or 51.91',
-        'message' => 'Only visitors from France (specific IP ranges) are welcome!'
+        'hint' => 'French IP 51.68, 51.75, or 51.91',
+        'message' => 'Only visitors from France are welcome!'
     ],
     6 => [
         'check' => function() {
             return isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) && 
                    preg_match('/^fr-FR|^fr/', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
         },
-        'hint' => 'Set Accept-Language: fr-FR,fr;q=0.9',
+        'hint' => 'fr-FR,fr;q=0.9',
         'message' => 'Parlez-vous français? We only accept French speakers!'
     ]
 ];
-
+// Use local images
+$gate_images = [
+    1 => 'images/gates/gate1.gif',
+    2 => 'images/gates/gate2.gif',
+    3 => 'images/gates/gate3.gif',
+    4 => 'images/gates/gate4.gif',
+    5 => 'images/gates/gate5.gif',
+    6 => 'images/gates/gate6.gif'
+];
 // Check gates in sequence
 $current_gate = 1;
 $all_passed = true;
@@ -79,6 +87,7 @@ foreach ($gates as $gate_num => $gate) {
 }
 
 // If all gates passed, show flag
+
 if ($all_passed) {
     $_SESSION['progress'] = max($_SESSION['progress'] ?? 0, 1);
     $flag = $_ENV['FLAG1'] ?? 'LOCTH{header_sequence_ok}';
@@ -88,16 +97,55 @@ if ($all_passed) {
     <head>
         <title>Gate Passed!</title>
         <link rel="stylesheet" href="css/style.css">
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .gate-container {
+                max-width: 600px;
+                background: #f5f5f5;
+                padding: 60px 40px;
+                text-align: center;
+            }
+            .success-message {
+                color: #28a745;
+                font-size: 1.5em;
+                margin-bottom: 30px;
+                font-weight: 500;
+            }
+        </style>
     </head>
     <body>
-        <div class="container">
-            <h1>All Gates Passed!</h1>
-            <div class="flag-box">
-                <h2>Flag #1</h2>
-                <code><?php echo htmlspecialchars($flag); ?></code>
+        <div class="gate-container">
+            <div class="success-message">
+                All gates passed successfully!
             </div>
-            <p>Congratulations! You've successfully navigated all 6 header gates.</p>
-            <a href="flow.php" class="btn">Continue to Stage 2</a>
+            
+            <div style="margin: 30px 0;">
+                <img src="https://via.placeholder.com/600x200/28a745/ffffff?text=All+Gates+Passed!" 
+                     alt="Success" 
+                    style="max-width: 600px; width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+            </div>
+            
+            <div style="background: #d4edda; padding: 25px; border-radius: 8px; margin: 30px 0;">
+                <h2 style="margin-top: 0;">Flag #1</h2>
+                <code style="font-size: 1.3em; color: #28a745; font-weight: bold;">
+                    <?php echo htmlspecialchars($flag); ?>
+                </code>
+            </div>
+            
+            <a href="flow.php" class="btn" style="display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">
+                Continue to Stage 2
+            </a>
+            
+            <div style="color: #999; font-size: 0.9em; margin-top: 40px;">
+                © LOCTH Lab
+            </div>
         </div>
     </body>
     </html>
@@ -114,20 +162,70 @@ header('X-Hint: ' . $gates[$current_gate]['hint']);
 <head>
     <title>Gate <?php echo $current_gate; ?> Failed</title>
     <link rel="stylesheet" href="css/style.css">
+        <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gate-container {
+            max-width: 600px;
+            background: #f5f5f5;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: none;
+            border-radius: 0;
+        }
+        .gate-message {
+            color: #dc3545;
+            font-size: 1.3em;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+        .gate-image {
+            margin: 30px 0;
+        }
+        .gate-image img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .footer-text {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 40px;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Gate <?php echo $current_gate; ?>/6 Failed</h1>
-        <div class="error-box">
-            <p><?php echo htmlspecialchars($gates[$current_gate]['message']); ?></p>
+    <div class="gate-container">
+        <div class="gate-message">
+            <?php echo htmlspecialchars($gates[$current_gate]['message']); ?>
         </div>
-        <div class="hint-box">
-            <strong>Hint:</strong> <?php echo htmlspecialchars($gates[$current_gate]['hint']); ?>
+        
+        <div class="gate-image">
+        <img src="<?php echo $gate_images[$current_gate]; ?>" 
+            alt="Gate <?php echo $current_gate; ?>" 
+            style="max-width: 600px; width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
         </div>
-        <p>Use Burp Suite to modify your HTTP headers and try again.</p>
-        <?php if ($current_gate > 1): ?>
-        <p class="success-hint">Gates 1-<?php echo $current_gate - 1; ?> passed!</p>
-        <?php endif; ?>
+        
+        <div class="hint-box" style="background: white; padding: 20px; border-radius: 8px; margin-top: 30px;">
+            <strong>Hint:</strong><br>
+            <?php echo htmlspecialchars($gates[$current_gate]['hint']); ?>
+            
+            <?php if ($current_gate > 1): ?>
+            <p style="color: #28a745; margin-top: 15px;">
+                ✓ Gates 1-<?php echo $current_gate - 1; ?> passed!
+            </p>
+            <?php endif; ?>
+        </div>
+        
+        <div class="footer-text">
+            © LOCTH Lab
+        </div>
     </div>
 </body>
 </html>

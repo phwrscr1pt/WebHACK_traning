@@ -1,0 +1,7 @@
+.git
+.gitignore
+flags/
+public/uploads/
+*.log
+*.tmp
+*.bak

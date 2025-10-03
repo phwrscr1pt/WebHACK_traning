@@ -40,4 +40,4 @@ INSERT INTO notes (user_id, title, content) VALUES
 UPDATE notes SET id = 501 WHERE user_id = 3 AND title = 'My First Note';
 UPDATE notes SET id = 502 WHERE user_id = 3 AND title = 'Project Ideas';
 UPDATE notes SET id = 503 WHERE user_id = 3 AND title = 'Meeting Notes';
-UPDATE notes SET id = 9001 WHERE user_id = 4;
+UPDATE notes SET id = 555 WHERE user_id = 4;

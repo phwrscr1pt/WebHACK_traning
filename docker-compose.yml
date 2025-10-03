@@ -1,0 +1,56 @@
+services:
+  web:
+    image: php:8.2-apache
+    container_name: webhack-web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./public:/var/www/html:rw
+      - ./docker/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+    environment:
+      # ให้ PHP รู้ค่าจาก .env (ถ้าโค้ดอ่าน getenv/$_ENV)
+      DB_HOST: db
+      DB_NAME: locth_lab
+      DB_USER: labuser
+      DB_PASS: labpass
+      APP_ENV: docker
+    depends_on:
+      - db
+    command: >
+      bash -lc "
+        a2enmod rewrite &&
+        docker-php-ext-install mysqli pdo pdo_mysql &&
+        apache2-foreground
+      "
+
+  db:
+    image: mysql:8.0
+    container_name: webhack-db
+    environment:
+      MYSQL_DATABASE: locth_lab
+      MYSQL_USER: labuser
+      MYSQL_PASSWORD: labpass
+      MYSQL_ROOT_PASSWORD: rootpass
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -prootpass || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  pma:
+    image: phpmyadmin:5-apache
+    container_name: webhack-pma
+    environment:
+      PMA_HOST: db
+      PMA_USER: labuser
+      PMA_PASSWORD: labpass
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
