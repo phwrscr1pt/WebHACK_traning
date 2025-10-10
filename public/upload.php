@@ -12,43 +12,9 @@ function loadEnv($path) {
 }
 loadEnv(__DIR__ . '/../.env');
 
-// Check QA mode (set by Stage 4)
-if (!isset($_SESSION['qa']) || $_SESSION['qa'] !== 1) {
-    die('
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Upload - LOCTH Lab</title>
-        <style>
-            body {
-                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 20px;
-            }
-            .container {
-                background: white;
-                border-radius: 20px;
-                padding: 50px;
-                text-align: center;
-                max-width: 500px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            }
-            h1 { color: #dc3545; margin-bottom: 20px; }
-            p { color: #666; font-size: 1.1em; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Access Denied</h1>
-            <p>QA Mode not enabled. Complete Stage 4 first.</p>
-        </div>
-    </body>
-    </html>
-    ');
+// Auto-enable QA mode for free play (no Stage 4 requirement)
+if (!isset($_SESSION['qa'])) {
+    $_SESSION['qa'] = 1;
 }
 
 $message = '';
@@ -58,10 +24,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     $file = $_FILES['file'];
     $upload_dir = __DIR__ . '/uploads/';
     
+    // Create uploads directory if not exists
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+    
     // Layer 1: Content-Type check (weak - trusts client)
     $content_type = $file['type'];
-    if ($content_type !== 'image/png' && $content_type !== 'image/jpeg') {
-        $message = 'Error: Only PNG and JPEG images allowed';
+    if ($content_type !== 'image/png' && $content_type !== 'image/jpeg' && $content_type !== 'image/gif') {
+        $message = 'Error: Only PNG, JPEG and GIF images allowed';
     } else {
         // Layer 2: Extension check (weak - only checks last extension)
         $filename = $file['name'];
@@ -78,13 +49,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             if (!in_array($mime, ['image/png', 'image/jpeg', 'image/gif'])) {
                 $message = 'Error: File content does not match image format';
             } else {
-                // BUG: Normalize filename but save with FIRST extension
+                // VULNERABILITY: Double extension bug
+                // If filename is shell.php.png, it will save as shell.php
                 $parts = explode('.', $filename);
-                if (count($parts) > 2) {
-                    $normalized_ext = $parts[1];
+                
+                if (count($parts) >= 3) {
+                    // BUG: Takes the SECOND extension instead of last
+                    // shell.php.png -> saves as shell.php
                     $base_name = $parts[0];
-                    $final_name = $base_name . '.' . $normalized_ext;
+                    $first_ext = $parts[1];
+                    $final_name = $base_name . '.' . $first_ext;
                 } else {
+                    // Normal case: test.png -> test.png
                     $final_name = $filename;
                 }
                 
@@ -94,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
                     $uploaded_file = $final_name;
                     $message = "Success! File uploaded as: $final_name";
                     
+                    // Check if PHP file was uploaded
                     if (strpos($final_name, '.php') !== false) {
                         $_SESSION['progress'] = max($_SESSION['progress'] ?? 0, 5);
                     }
@@ -240,6 +217,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             border-radius: 8px;
             color: #555;
         }
+        
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .back-link a {
+            color: white;
+            text-decoration: none;
+            font-size: 1.1em;
+            transition: opacity 0.3s;
+        }
+        
+        .back-link a:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -253,10 +246,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
                 </div>
             <?php endif; ?>
             
-            <?php if ($uploaded_file): ?>
+            <?php if ($uploaded_file && strpos($uploaded_file, '.php') !== false): ?>
                 <div class="success-box">
-                    <strong>Next:</strong> Use runner.php to execute<br>
-                    <code>runner.php?f=<?php echo urlencode($uploaded_file); ?>&cmd=id</code>
+                    <strong>Next Step:</strong> Use runner.php to execute<br>
+                    <code>runner.php?f=<?php echo urlencode($uploaded_file); ?>&cmd=id</code><br><br>
+                    <strong>Get Flag:</strong><br>
+                    <code>runner.php?f=<?php echo urlencode($uploaded_file); ?>&cmd=cat%20../flags/final_flag.txt</code>
                 </div>
             <?php endif; ?>
             
@@ -271,11 +266,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             </form>
         </div>
         
-        <div class="hint-box">
-            <h3>Hints</h3>
-            <p>1. Content-Type image/png</p>
-            <p>2. Double extension</p>
-            <p>3. PNG magic bytes</code></p>
+<!--        <div class="hint-box">
+            <h3>Stage 5: File Upload Bypass</h3>
+            <p><strong>Vulnerability:</strong> Double extension bug</p>
+            <p><strong>Exploit:</strong> filename.php.png → saves as filename.php</p>
+            <p><strong>Bypass Filters:</strong></p>
+            <p>1. Content-Type: <code>image/png</code></p>
+            <p>2. Extension: <code>.png</code> (last extension)</p>
+            <p>3. Magic bytes: Start with PNG header <code>\x89PNG</code></p>
+            <p style="margin-top: 15px;"><strong>Example Payload:</strong></p>
+            <p>Create file: <code>shell.php.png</code> with content:</p>
+            <p><code>&lt;?php system($_GET['cmd']); ?&gt;</code></p>
+            <p>Add PNG magic bytes at the start of file</p>
+        </div> -->
+        
+        <div class="back-link">
+            <a href="flow.php">← Back to Challenge Flow</a>
         </div>
     </div>
     

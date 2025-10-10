@@ -1,18 +1,21 @@
 <?php
-session_start();
+// Suppress errors completely
+@ini_set('display_errors', 0);
+@error_reporting(0);
 
-// Initialize completed_stages array
-if (!isset($_SESSION['completed_stages'])) {
-    $_SESSION['completed_stages'] = array();
-}
+session_start();
 
 function loadEnv($path) {
     if (!file_exists($path)) return;
-    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!$lines) return;
     foreach ($lines as $line) {
         if (strpos(trim($line), '#') === 0) continue;
-        list($key, $value) = explode('=', $line, 2);
-        $_ENV[trim($key)] = trim($value);
+        if (strpos($line, '=') === false) continue;
+        $parts = explode('=', $line, 2);
+        if (count($parts) == 2) {
+            $_ENV[trim($parts[0])] = trim($parts[1]);
+        }
     }
 }
 loadEnv(__DIR__ . '/../.env');
@@ -21,81 +24,122 @@ $error = '';
 $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    
-    // Input validation
-    $username = trim($username);
-    $password = trim($password);
-    
-    // Check for empty fields
-    if (empty($username) || empty($password)) {
-        $error = 'Username and password are required';
-    }
-    // Check length limits
-    elseif (strlen($username) > 50 || strlen($password) > 50) {
-        $error = 'Username and password must be less than 50 characters';
-    }
-    // Block obvious SQL injection patterns (weak filter - still bypassable)
-    elseif (preg_match('/(\bUNION\b|\bSELECT\b.*\bFROM\b|\bDROP\b|\bDELETE\b|\bINSERT\b|\bUPDATE\b)/i', $username . $password)) {
-        $error = 'Invalid characters detected';
-    }
-    // Check for suspicious characters (but allow quotes and dashes for SQLi)
-    elseif (preg_match('/[<>{}[\]\\\\]/', $username . $password)) {
-        $error = 'Invalid characters in input';
-    }
-    else {
-        // Database connection
-        $mysqli = new mysqli(
-            $_ENV['DB_HOST'] ?? 'localhost',
-            $_ENV['DB_USER'] ?? 'locth_user',
-            $_ENV['DB_PASS'] ?? 'L0cTh_S3cur3_P@ss',
-            $_ENV['DB_NAME'] ?? 'locth_lab'
-        );
+    try {
+        $username = isset($_POST['username']) ? $_POST['username'] : '';
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
         
-        if ($mysqli->connect_error) {
-            $error = 'Database connection failed';
-        } else {
-            // Still vulnerable - allows Boolean-based SQLi
-            $query = "SELECT id, username, role FROM users WHERE username = '$username' AND password_clear = '$password'";
+        // INPUT VALIDATION: Remove all numbers (0-9)
+        $username = preg_replace('/[0-9]/', '', $username);
+        $password = preg_replace('/[0-9]/', '', $password);
+        
+        // Trim whitespace
+        $username = trim($username);
+        $password = trim($password);
+        
+        // Check empty after filtering
+        if (empty($username) || empty($password)) {
+            $error = 'Username and password are required (numbers not allowed)';
+        }
+        elseif (strlen($username) > 200 || strlen($password) > 200) {
+            $error = 'Input too long';
+        }
+        else {
+            // Database connection
+            $mysqli = @mysqli_connect(
+                isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : 'localhost',
+                isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : 'locth_user',
+                isset($_ENV['DB_PASS']) ? $_ENV['DB_PASS'] : 'L0cTh_S3cur3_P@ss',
+                isset($_ENV['DB_NAME']) ? $_ENV['DB_NAME'] : 'locth_lab'
+            );
             
-            // Suppress warnings and handle errors gracefully
-            $result = @$mysqli->query($query);
-            
-            // Check for SQL errors
-            if ($result === false) {
-                $error = 'Invalid username or password';
-            }
-            elseif ($result->num_rows > 0) {
-                $user = $result->fetch_assoc();
+            if (!$mysqli) {
+                $error = 'Database connection failed';
+            } else {
+                // VULNERABLE - No input sanitization (except number removal)
+                // This still allows: ' or 'a'='a'#, ' or role='staff'#, etc.
+                $query = "SELECT id, username, role FROM users WHERE username = '$username' AND password_clear = '$password'";
                 
-                // Role-based access control
-                if ($user['role'] === 'staff') {
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['role'] = $user['role'];
-                    $_SESSION['login_time'] = time();
-                    $_SESSION['completed_stages'][2] = true;
-                    header('Location: otp.php');
-                    exit;
-                } 
-                elseif ($user['role'] === 'curator') {
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['role'] = $user['role'];
-                    $_SESSION['login_time'] = time();
-                    $_SESSION['completed_stages'][3] = true;
-                    $flag = $_ENV['FLAG3'] ?? 'LOCTH{union_dump_success}';
-                    $success = true;
+                // Execute query
+                $result = @mysqli_query($mysqli, $query);
+                
+                if ($result === false || $result === null) {
+                    // Query failed due to SQL error
+                    $error = 'Invalid username or password';
+                }
+                elseif (@mysqli_num_rows($result) > 0) {
+                    // Login successful - fetch first user
+                    $user = @mysqli_fetch_assoc($result);
+                    
+                    if ($user && isset($user['role'])) {
+                        // Check role
+                        if ($user['role'] === 'staff') {
+                            $_SESSION['user_id'] = $user['id'];
+                            $_SESSION['username'] = $user['username'];
+                            $_SESSION['role'] = $user['role'];
+                            $_SESSION['login_time'] = time();
+                            
+                            @mysqli_free_result($result);
+                            @mysqli_close($mysqli);
+                            
+                            header('Location: otp.php');
+                            exit;
+                        } 
+                        elseif ($user['role'] === 'curator') {
+                            $_SESSION['user_id'] = $user['id'];
+                            $_SESSION['username'] = $user['username'];
+                            $_SESSION['role'] = $user['role'];
+                            $_SESSION['login_time'] = time();
+                            $_SESSION['progress'] = max(isset($_SESSION['progress']) ? $_SESSION['progress'] : 0, 3);
+                            
+                            $flag = isset($_ENV['FLAG3']) ? $_ENV['FLAG3'] : 'LOCTH{union_dump_success}';
+                            $success = true;
+                        }
+                        elseif ($user['role'] === 'admin') {
+                            // If admin is returned, try to get staff instead
+                            @mysqli_data_seek($result, 0);
+                            $found_staff = false;
+                            while ($row = @mysqli_fetch_assoc($result)) {
+                                if ($row['role'] === 'staff') {
+                                    $_SESSION['user_id'] = $row['id'];
+                                    $_SESSION['username'] = $row['username'];
+                                    $_SESSION['role'] = $row['role'];
+                                    $_SESSION['login_time'] = time();
+                                    
+                                    @mysqli_free_result($result);
+                                    @mysqli_close($mysqli);
+                                    
+                                    header('Location: otp.php');
+                                    exit;
+                                }
+                            }
+                            
+                            if (!$found_staff) {
+                                $error = 'Access denied for this user role';
+                            }
+                        }
+                        else {
+                            $error = 'Access denied for this user role';
+                        }
+                    } else {
+                        $error = 'Invalid username or password';
+                    }
+                    
+                    @mysqli_free_result($result);
                 } 
                 else {
-                    $error = 'Access denied for this user role';
+                    $error = 'Invalid username or password';
+                    if ($result) {
+                        @mysqli_free_result($result);
+                    }
                 }
-            } else {
-                $error = 'Invalid username or password';
+                
+                @mysqli_close($mysqli);
             }
-            $mysqli->close();
         }
+    } catch (Exception $e) {
+        $error = 'Invalid username or password';
+    } catch (Error $e) {
+        $error = 'Invalid username or password';
     }
 }
 ?>
@@ -202,15 +246,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn:hover {
             transform: translateY(-2px);
         }
-        
-        .hint {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            font-size: 0.9em;
-            color: #666;
-        }
     </style>
 </head>
 <body>
@@ -232,19 +267,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST">
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" name="username" required maxlength="50">
+                <input type="text" name="username" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" name="password" required maxlength="50">
+                <input type="password" name="password" required>
             </div>
             <button type="submit" class="btn">Login</button>
         </form>
-        
-        <div class="hint">
-            Stage 2: Boolean SQLi → login as 'staff'<br>
-            Stage 3: UNION SQLi → get credentials first
-        </div>
         <?php endif; ?>
     </div>
 </body>

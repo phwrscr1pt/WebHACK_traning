@@ -230,10 +230,10 @@ if (isset($_GET['q'])) {
         </div>
         <?php endif; ?>
         
-        <div class="hint">
+<!--        <div class="hint">
             <strong>Stage 3:</strong> UNION SQLi with 3 columns<br>
             Try: <code>' UNION SELECT id,username,password_clear FROM users-- -</code>
         </div>
-    </div>
+    </div> -->
 </body>
 </html>

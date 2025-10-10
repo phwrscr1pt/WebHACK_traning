@@ -38,10 +38,14 @@ if ($note_id) {
         if ($result && $result->num_rows > 0) {
             $note = $result->fetch_assoc();
             
-            // If accessing note 9001 (head_curator's secret note)
-            if ($note_id == 555) {
+            // If accessing note 555 (admin's secret note) - ENABLE QA MODE
+            if (intval($note_id) == 555) {
                 $_SESSION['progress'] = max($_SESSION['progress'] ?? 0, 4);
                 $_SESSION['qa'] = 1; // Enable QA mode for file upload
+                
+                // Force session write
+                session_write_close();
+                session_start();
             }
         } else {
             $error = 'Note not found';
@@ -173,6 +177,16 @@ if ($note_id) {
             margin-top: 30px;
         }
         
+        .debug-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
         @media (max-width: 768px) {
             .note-card {
                 padding: 25px;
@@ -189,8 +203,9 @@ if ($note_id) {
         <?php if ($note): ?>
             <?php if ($note_id == 555): ?>
             <div class="success-banner">
-                <h3>Stage 4 Complete!</h3>
-                <p>QA Mode enabled for Stage 5</p>
+                <h3>🎉 Stage 4 Complete!</h3>
+                <p><strong>QA Mode Enabled:</strong> You can now access Stage 5 (File Upload)</p>
+                <p style="font-size: 0.9em; margin-top: 10px;">Session Status: QA = <?php echo isset($_SESSION['qa']) ? $_SESSION['qa'] : 'NOT SET'; ?></p>
             </div>
             <?php endif; ?>
             
@@ -211,9 +226,17 @@ if ($note_id) {
                     ?>
                 </div>
                 
+                <?php if ($note_id == 555): ?>
+                <div class="debug-info">
+                    <strong>Debug Info:</strong><br>
+                    Session QA: <?php echo isset($_SESSION['qa']) ? 'ENABLED ✓' : 'NOT SET ✗'; ?><br>
+                    Progress: <?php echo $_SESSION['progress'] ?? 'NOT SET'; ?>
+                </div>
+                <?php endif; ?>
+                
                 <div class="actions">
                     <?php if ($note_id == 555): ?>
-                    <a href="flow.php" class="btn">Continue to Stage 5</a>
+                    <a href="upload.php" class="btn">Continue to Stage 5 (Upload)</a>
                     <?php endif; ?>
                     <a href="curator.php" class="btn-secondary">Back to Dashboard</a>
                 </div>

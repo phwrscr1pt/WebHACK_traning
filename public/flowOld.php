@@ -1,8 +1,11 @@
 <?php
 session_start();
 
-// Optional: Track progress for visual feedback only (not required)
-$progress = $_SESSION['progress'] ?? 0;
+if (!isset($_SESSION['progress'])) {
+    $_SESSION['progress'] = 0;
+}
+
+$progress = $_SESSION['progress'];
 ?>
 <!DOCTYPE html>
 <html>
@@ -32,13 +35,6 @@ $progress = $_SESSION['progress'] ?? 0;
             color: white;
             text-align: center;
             font-size: 2.5em;
-            margin-bottom: 20px;
-        }
-        
-        .subtitle {
-            color: rgba(255, 255, 255, 0.9);
-            text-align: center;
-            font-size: 1.2em;
             margin-bottom: 50px;
         }
         
@@ -51,16 +47,15 @@ $progress = $_SESSION['progress'] ?? 0;
             display: flex;
             align-items: center;
             gap: 25px;
-            transition: transform 0.3s, box-shadow 0.3s;
         }
         
-        .stage:hover {
-            transform: translateX(5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        .stage.locked {
+            opacity: 0.5;
+            pointer-events: none;
         }
         
         .stage.completed {
-            background: #f0fff4;
+            background: #d4edda;
             border-left: 5px solid #28a745;
         }
         
@@ -85,17 +80,10 @@ $progress = $_SESSION['progress'] ?? 0;
             color: #333;
         }
         
-        .stage-desc {
-            color: #666;
-            font-size: 0.95em;
-            margin-bottom: 10px;
-        }
-        
         .stage-status {
             color: #28a745;
             font-weight: 600;
             margin-bottom: 10px;
-            font-size: 0.9em;
         }
         
         .btn {
@@ -114,27 +102,18 @@ $progress = $_SESSION['progress'] ?? 0;
             transform: translateY(-2px);
         }
         
-        .stage.completed .btn {
-            background: #28a745;
-        }
-        
-        .stage.completed .btn:hover {
-            background: #218838;
-        }
-        
-        .info-box {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
+        .completion {
+            background: white;
             border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-            color: white;
+            padding: 50px;
             text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         
-        .info-box h3 {
-            margin-bottom: 10px;
-            font-size: 1.2em;
+        .completion h2 {
+            color: #28a745;
+            font-size: 2.5em;
+            margin-bottom: 20px;
         }
         
         @media (max-width: 768px) {
@@ -147,78 +126,79 @@ $progress = $_SESSION['progress'] ?? 0;
 </head>
 <body>
     <div class="container">
-        <h1>Challenge Flow</h1>
-        <p class="subtitle">Choose any stage to begin - no sequence required</p>
-
-        <div class="info-box">
-            <h3>🎯 Free Play Mode</h3>
-            <p>All stages are unlocked. Complete them in any order you prefer!</p>
-        </div>
+        <h1>Challenge Progress</h1>
 
         <!-- Stage 1 -->
         <div class="stage <?php echo $progress >= 1 ? 'completed' : ''; ?>">
             <div class="stage-number">1</div>
             <div class="stage-content">
-                <div class="stage-title">HTTP Headers Manipulation</div>
-                <div class="stage-desc">Bypass security gates by manipulating HTTP headers</div>
+                <div class="stage-title">HTTP Headers</div>
                 <?php if ($progress >= 1): ?>
                     <div class="stage-status">✓ Completed</div>
+                <?php else: ?>
+                    <a href="gate.php" class="btn">Start</a>
                 <?php endif; ?>
-                <a href="gate.php" class="btn">Start Challenge</a>
             </div>
         </div>
 
         <!-- Stage 2 -->
-        <div class="stage <?php echo $progress >= 2 ? 'completed' : ''; ?>">
+        <div class="stage <?php echo $progress >= 2 ? 'completed' : ($progress >= 1 ? '' : 'locked'); ?>">
             <div class="stage-number">2</div>
             <div class="stage-content">
-                <div class="stage-title">SQL Injection + OTP Bypass</div>
-                <div class="stage-desc">Exploit boolean-based SQLi and brute force OTP</div>
+                <div class="stage-title">SQL Injection + OTP</div>
                 <?php if ($progress >= 2): ?>
                     <div class="stage-status">✓ Completed</div>
+                <?php elseif ($progress >= 1): ?>
+                    <a href="login.php" class="btn">Start</a>
                 <?php endif; ?>
-                <a href="login.php" class="btn">Start Challenge</a>
             </div>
         </div>
 
         <!-- Stage 3 -->
-        <div class="stage <?php echo $progress >= 3 ? 'completed' : ''; ?>">
+        <div class="stage <?php echo $progress >= 3 ? 'completed' : ($progress >= 2 ? '' : 'locked'); ?>">
             <div class="stage-number">3</div>
             <div class="stage-content">
-                <div class="stage-title">UNION-based SQL Injection</div>
-                <div class="stage-desc">Extract database credentials using UNION SQLi</div>
+                <div class="stage-title">UNION SQLi</div>
                 <?php if ($progress >= 3): ?>
                     <div class="stage-status">✓ Completed</div>
+                <?php elseif ($progress >= 2): ?>
+                    <a href="search.php" class="btn">Start</a>
                 <?php endif; ?>
-                <a href="search.php" class="btn">Start Challenge</a>
             </div>
         </div>
 
         <!-- Stage 4 -->
-        <div class="stage <?php echo $progress >= 4 ? 'completed' : ''; ?>">
+        <div class="stage <?php echo $progress >= 4 ? 'completed' : ($progress >= 3 ? '' : 'locked'); ?>">
             <div class="stage-number">4</div>
             <div class="stage-content">
-                <div class="stage-title">IDOR Vulnerability</div>
-                <div class="stage-desc">Access unauthorized notes through insecure direct object reference</div>
+                <div class="stage-title">IDOR</div>
                 <?php if ($progress >= 4): ?>
                     <div class="stage-status">✓ Completed</div>
+                <?php elseif ($progress >= 3): ?>
+                    <a href="curator.php" class="btn">Start</a>
                 <?php endif; ?>
-                <a href="curator.php" class="btn">Start Challenge</a>
             </div>
         </div>
 
         <!-- Stage 5 -->
-        <div class="stage <?php echo $progress >= 5 ? 'completed' : ''; ?>">
+        <div class="stage <?php echo $progress >= 5 ? 'completed' : ($progress >= 4 ? '' : 'locked'); ?>">
             <div class="stage-number">5</div>
             <div class="stage-content">
                 <div class="stage-title">File Upload + RCE</div>
-                <div class="stage-desc">Bypass validation filters and achieve remote code execution</div>
                 <?php if ($progress >= 5): ?>
                     <div class="stage-status">✓ Completed</div>
+                <?php elseif ($progress >= 4): ?>
+                    <a href="upload.php" class="btn">Start</a>
                 <?php endif; ?>
-                <a href="upload.php" class="btn">Start Challenge</a>
             </div>
         </div>
+
+        <?php if ($progress >= 5): ?>
+        <div class="completion">
+            <h2>🏆 All Stages Complete!</h2>
+            <p style="font-size: 1.3em; color: #666; margin-top: 10px;">5/5 Flags Captured</p>
+        </div>
+        <?php endif; ?>
     </div>
 </body>
 </html>

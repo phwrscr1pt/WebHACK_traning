@@ -1,43 +1,75 @@
+-- LOCTH Lab Database Initialization
+-- All passwords WITHOUT numbers to match login.php filter
+
+-- Create database
+CREATE DATABASE IF NOT EXISTS locth_lab;
 USE locth_lab;
 
--- Users table for SQLi challenges
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+-- Drop existing tables
+DROP TABLE IF EXISTS notes;
+DROP TABLE IF EXISTS users;
+
+-- Create users table
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
     password_clear VARCHAR(50) NOT NULL,
-    role VARCHAR(20) DEFAULT 'user',
+    role VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Notes table for IDOR challenge
-CREATE TABLE IF NOT EXISTS notes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+-- Create notes table
+CREATE TABLE notes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    title VARCHAR(100) NOT NULL,
+    title VARCHAR(200) NOT NULL,
     content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Insert users
-INSERT INTO users (username, password_hash, password_clear, role) VALUES
-('admin', '$2y$10$abcdefghijklmnopqrstuv', 'admin123', 'admin'),
-('staff', '$2y$10$zyxwvutsrqponmlkjihgfe', 'staff456', 'staff'),
-('shadow_curator', '$2y$10$curator_hash_here_12345', 'cur4t0r', 'curator'),
-('head_curator', '$2y$10$head_curator_hash_67890', 'master_key', 'head');
+-- Insert users (passwords WITHOUT any numbers 0-9)
+INSERT INTO users (id, username, password_clear, role) VALUES
+(1, 'admin', 'adminsecret', 'admin'),
+(2, 'staff', 'staffpassword', 'staff'),
+(3, 'shadow_curator', 'curatorsecretkey', 'curator'),
+(4, 'head_curator', 'masterkey', 'head'),
+(5, 'guest', 'guestpass', 'guest');
 
--- Insert notes for shadow_curator (id=3)
-INSERT INTO notes (user_id, title, content) VALUES
-(3, 'My First Note', 'This is a regular note by shadow_curator'),
-(3, 'Project Ideas', 'Some ideas for the project: refactor, optimize, test'),
-(3, 'Meeting Notes', 'Discussed the new security measures with the team');
+-- Insert notes for shadow_curator (user_id = 3)
+INSERT INTO notes (id, user_id, title, content) VALUES
+(501, 3, 'Project Notes', 'These are my personal project notes for the web security lab. Working on improving authentication mechanisms and database security.'),
+(502, 3, 'Meeting Minutes', 'Discussed new security features and vulnerability testing procedures. Next meeting scheduled for review of penetration testing results.'),
+(503, 3, 'Todo List', 'Complete stages 1-5, review code for vulnerabilities, prepare documentation for security assessment, update password policies.');
 
--- Insert secret note for head_curator (id=4) - This is the IDOR target
-INSERT INTO notes (user_id, title, content) VALUES
-(4, 'SECRET: Master Access', 'LOCTH{idor_masterpiece}\n\nThis note contains the flag for Stage 4. Well done on exploiting the IDOR vulnerability!\n\nQA Mode is now enabled for file upload testing.');
+-- Insert secret note with FLAG (accessible via IDOR - note_id = 555)
+INSERT INTO notes (id, user_id, title, content) VALUES
+(555, 1, 'Secret Admin Note', 'Congratulations! You found the secret note through IDOR vulnerability.
 
--- Update note IDs to match requirements
-UPDATE notes SET id = 501 WHERE user_id = 3 AND title = 'My First Note';
-UPDATE notes SET id = 502 WHERE user_id = 3 AND title = 'Project Ideas';
-UPDATE notes SET id = 503 WHERE user_id = 3 AND title = 'Meeting Notes';
-UPDATE notes SET id = 555 WHERE user_id = 4;
+Flag #4: LOCTH{idor_access_granted}
+
+QA Mode has been enabled for Stage 5 (File Upload).
+You can now proceed to upload.php to continue the challenge.');
+
+-- Insert additional notes for head_curator
+INSERT INTO notes (id, user_id, title, content) VALUES
+(601, 4, 'Security Audit Report', 'Annual security audit completed. Several vulnerabilities identified and documented for remediation.'),
+(602, 4, 'Access Control Policy', 'Updated access control policies to restrict unauthorized access to sensitive resources.');
+
+-- Display results
+SELECT '==================================' AS '';
+SELECT 'Database initialization complete!' AS 'STATUS';
+SELECT '==================================' AS '';
+
+SELECT '' AS '';
+SELECT 'USERS TABLE:' AS '';
+SELECT id, username, password_clear, role FROM users ORDER BY id;
+
+SELECT '' AS '';
+SELECT 'NOTES TABLE:' AS '';
+SELECT id, title, user_id FROM notes ORDER BY id;
+
+SELECT '' AS '';
+SELECT '==================================' AS '';
+SELECT 'IMPORTANT: All passwords have NO numbers!' AS 'NOTICE';
+SELECT '==================================' AS '';
