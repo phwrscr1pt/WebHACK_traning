@@ -1,6 +1,11 @@
 <?php
 session_start();
 
+// Initialize completed_stages array
+if (!isset($_SESSION['completed_stages'])) {
+    $_SESSION['completed_stages'] = array();
+}
+
 function loadEnv($path) {
     if (!file_exists($path)) return;
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -53,9 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Still vulnerable - allows Boolean-based SQLi
             $query = "SELECT id, username, role FROM users WHERE username = '$username' AND password_clear = '$password'";
-            $result = $mysqli->query($query);
             
-            if ($result && $result->num_rows > 0) {
+            // Suppress warnings and handle errors gracefully
+            $result = @$mysqli->query($query);
+            
+            // Check for SQL errors
+            if ($result === false) {
+                $error = 'Invalid username or password';
+            }
+            elseif ($result->num_rows > 0) {
                 $user = $result->fetch_assoc();
                 
                 // Role-based access control
@@ -64,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['login_time'] = time();
+                    $_SESSION['completed_stages'][2] = true;
                     header('Location: otp.php');
                     exit;
                 } 
@@ -72,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['login_time'] = time();
-                    $_SESSION['progress'] = max($_SESSION['progress'] ?? 0, 3);
+                    $_SESSION['completed_stages'][3] = true;
                     $flag = $_ENV['FLAG3'] ?? 'LOCTH{union_dump_success}';
                     $success = true;
                 } 
